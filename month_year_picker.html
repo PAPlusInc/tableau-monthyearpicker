@@ -161,11 +161,10 @@ const PARAM_TO_YEAR    = 'pToYearApply';
 function populateYears() {
   ['fromYear', 'toYear'].forEach((id, i) => {
     const sel = document.getElementById(id);
-    YEARS.forEach(y => {
+    [2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030].forEach(y => {
       const opt = document.createElement('option');
-      opt.value = y;
-      opt.textContent = y;
-      if ((i === 0 && y === 2023) || (i === 1 && y === 2025)) opt.selected = true;
+      opt.value = y; opt.textContent = y;
+      if ((i===0&&y===2023)||(i===1&&y===2025)) opt.selected=true;
       sel.appendChild(opt);
     });
   });
@@ -174,60 +173,43 @@ function populateYears() {
 function setStatus(msg, type) {
   const el = document.getElementById('status');
   el.textContent = msg;
-  el.className = 'status ' + (type || '');
-}
-
-async function applyRange() {
-  const fromMonth = parseInt(document.getElementById('fromMonth').value, 10);
-  const fromYear  = parseInt(document.getElementById('fromYear').value, 10);
-  const toMonth   = parseInt(document.getElementById('toMonth').value, 10);
-  const toYear    = parseInt(document.getElementById('toYear').value, 10);
-
-  if ((fromYear * 12 + fromMonth) > (toYear * 12 + toMonth)) {
-    setStatus('From date must be before To date.', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('applyBtn');
-  btn.disabled = true;
-  btn.textContent = 'Applying...';
-  setStatus('');
-
-  try {
-    const dash   = tableau.extensions.dashboardContent.dashboard;
-    const params = await dash.getParametersAsync();
-    const find   = name => params.find(p => p.name === name);
-
-    const setParam = async (paramName, intVal) => {
-      const param = find(paramName);
-      if (!param) throw new Error('Not found: ' + paramName);
-      await param.changeValueAsync(intVal);
-    };
-
-    await setParam(PARAM_FROM_MONTH, fromMonth);
-    await setParam(PARAM_FROM_YEAR,  fromYear);
-    await setParam(PARAM_TO_MONTH,   toMonth);
-    await setParam(PARAM_TO_YEAR,    toYear);
-
-    const MO = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    setStatus('Applied: ' + MO[fromMonth] + ' ' + fromYear + ' to ' + MO[toMonth] + ' ' + toYear, 'success');
-
-  } catch (err) {
-    setStatus('Error: ' + err.message, 'error');
-    console.error(err);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Apply';
-  }
+  el.className = 'status ' + (type||'');
 }
 
 populateYears();
 
-tableau.extensions.initializeAsync().then(() => {
+tableau.extensions.initializeAsync({'configure': false}).then(async () => {
   setStatus('Ready');
   setTimeout(() => setStatus(''), 1500);
-}).catch(() => {
-  setStatus('Running outside Tableau - preview mode only.');
+
+  document.getElementById('applyBtn').onclick = async () => {
+    const fromMonth = parseInt(document.getElementById('fromMonth').value, 10);
+    const fromYear  = parseInt(document.getElementById('fromYear').value, 10);
+    const toMonth   = parseInt(document.getElementById('toMonth').value, 10);
+    const toYear    = parseInt(document.getElementById('toYear').value, 10);
+
+    if ((fromYear * 12 + fromMonth) > (toYear * 12 + toMonth)) {
+      setStatus('From date must be before To date.', 'error');
+      return;
+    }
+
+    setStatus('Applying...');
+
+    try {
+      const dash = tableau.extensions.dashboardContent.dashboard;
+
+      const allParams = await dash.getParametersAsync();
+      let info = 'Parameters found: ' + allParams.length + '\n';
+      allParams.forEach(p => { info += p.name + '\n'; });
+      setStatus(info);
+
+    } catch(e) {
+      setStatus('Error: ' + e.message, 'error');
+    }
+  };
+
+}).catch(e => {
+  setStatus('Init failed: ' + e.message);
 });
 </script>
 </body>
