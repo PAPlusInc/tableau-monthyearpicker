@@ -188,10 +188,10 @@
 
 <script>
 const YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
-const PARAM_FROM_MONTH = 'pFromMonth';
-const PARAM_FROM_YEAR  = 'pFromYear';
-const PARAM_TO_MONTH   = 'pToMonth';
-const PARAM_TO_YEAR    = 'pToYear';
+const PARAM_FROM_MONTH = 'pFromMonthApply';
+const PARAM_FROM_YEAR  = 'pFromYearApply';
+const PARAM_TO_MONTH   = 'pToMonthApply';
+const PARAM_TO_YEAR    = 'pToYearApply';
 
 function populateYears() {
   ['fromYear', 'toYear'].forEach((id, i) => {
@@ -213,24 +213,40 @@ function setStatus(msg, type = '') {
 }
 
 async function applyRange() {
+  const fromMonth = parseInt(document.getElementById('fromMonth').value);
+  const fromYear  = parseInt(document.getElementById('fromYear').value);
+  const toMonth   = parseInt(document.getElementById('toMonth').value);
+  const toYear    = parseInt(document.getElementById('toYear').value);
+
+  const fromIdx = fromYear * 12 + fromMonth;
+  const toIdx   = toYear  * 12 + toMonth;
+
+  if (fromIdx > toIdx) {
+    setStatus('From date must be before To date.', 'error');
+    return;
+  }
+
   const btn = document.getElementById('applyBtn');
   btn.disabled = true;
-  btn.textContent = 'Checking...';
+  btn.textContent = 'Applying...';
   setStatus('');
 
   try {
     const dash   = tableau.extensions.dashboardContent.dashboard;
     const params = await dash.getParametersAsync();
 
-    let debugInfo = '';
-    params.forEach(p => {
-      debugInfo += p.name + ' | type: ' + p.dataType + ' | value: ' + p.currentValue.value + '\n';
-    });
+    const find = name => params.find(p => p.name === name);
 
-    setStatus(debugInfo);
-
+	await find(PARAM_FROM_MONTH).changeValueAsync(parseInt(fromMonth, 10));
+	await find(PARAM_FROM_YEAR).changeValueAsync(parseInt(fromYear, 10));
+	await find(PARAM_TO_MONTH).changeValueAsync(parseInt(toMonth, 10));
+	await find(PARAM_TO_YEAR).changeValueAsync(parseInt(toYear, 10));
+	
+    const MO = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    setStatus(`Applied: ${MO[fromMonth]} ${fromYear} \u2192 ${MO[toMonth]} ${toYear}`, 'success');
   } catch (err) {
-    setStatus('Error: ' + err.message, 'error');
+    setStatus('Could not update parameters. Check names match exactly.', 'error');
+    console.error(err);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Apply';
