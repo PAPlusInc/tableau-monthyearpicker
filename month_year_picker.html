@@ -7,7 +7,6 @@
 <script src="tableau.extensions.1.latest.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   body {
     font-family: 'Segoe UI', system-ui, sans-serif;
     background: #f8f8f6;
@@ -17,7 +16,6 @@
     min-height: 100vh;
     padding: 12px;
   }
-
   .picker {
     display: flex;
     align-items: flex-end;
@@ -28,13 +26,7 @@
     padding: 14px 18px;
     flex-wrap: wrap;
   }
-
-  .group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-
+  .group { display: flex; flex-direction: column; gap: 5px; }
   .group-label {
     font-size: 10px;
     letter-spacing: .09em;
@@ -42,12 +34,7 @@
     color: #888780;
     font-weight: 600;
   }
-
-  .selects {
-    display: flex;
-    gap: 5px;
-  }
-
+  .selects { display: flex; gap: 5px; }
   select {
     appearance: none;
     background: #f4f3ef;
@@ -63,16 +50,9 @@
     background-position: right 8px center;
     font-family: inherit;
   }
-
-  select:focus {
-    outline: none;
-    border-color: #185FA5;
-    background-color: #fff;
-  }
-
+  select:focus { outline: none; border-color: #185FA5; background-color: #fff; }
   select.month { min-width: 70px; }
   select.year  { min-width: 72px; }
-
   .arrow {
     padding-bottom: 9px;
     color: #b4b2a9;
@@ -80,7 +60,6 @@
     line-height: 1;
     align-self: flex-end;
   }
-
   .divider {
     width: 1px;
     height: 36px;
@@ -88,13 +67,7 @@
     align-self: flex-end;
     margin: 0 2px;
   }
-
-  .apply-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-
+  .apply-wrap { display: flex; flex-direction: column; gap: 5px; }
   .apply-label {
     font-size: 10px;
     letter-spacing: .09em;
@@ -103,7 +76,6 @@
     font-weight: 600;
     user-select: none;
   }
-
   button {
     padding: 8px 20px;
     background: #0C447C;
@@ -118,16 +90,9 @@
     transition: background .15s;
     white-space: nowrap;
   }
-
   button:hover  { background: #185FA5; }
   button:active { background: #042C53; transform: scale(0.98); }
-
-  button:disabled {
-    background: #b4b2a9;
-    cursor: default;
-    transform: none;
-  }
-
+  button:disabled { background: #b4b2a9; cursor: default; transform: none; }
   .status {
     font-size: 11px;
     color: #888780;
@@ -135,9 +100,9 @@
     padding-top: 6px;
     width: 100%;
     min-height: 16px;
+    white-space: pre-wrap;
   }
-
-  .status.error { color: #A32D2D; }
+  .status.error   { color: #A32D2D; }
   .status.success { color: #3B6D11; }
 </style>
 </head>
@@ -206,49 +171,50 @@ function populateYears() {
   });
 }
 
-function setStatus(msg, type = '') {
+function setStatus(msg, type) {
   const el = document.getElementById('status');
   el.textContent = msg;
-  el.className = 'status ' + type;
+  el.className = 'status ' + (type || '');
 }
 
 async function applyRange() {
+  const fromMonth = parseInt(document.getElementById('fromMonth').value, 10);
+  const fromYear  = parseInt(document.getElementById('fromYear').value, 10);
+  const toMonth   = parseInt(document.getElementById('toMonth').value, 10);
+  const toYear    = parseInt(document.getElementById('toYear').value, 10);
+
+  if ((fromYear * 12 + fromMonth) > (toYear * 12 + toMonth)) {
+    setStatus('From date must be before To date.', 'error');
+    return;
+  }
+
   const btn = document.getElementById('applyBtn');
   btn.disabled = true;
-  setStatus('Testing...');
+  btn.textContent = 'Applying...';
+  setStatus('');
 
   try {
     const dash   = tableau.extensions.dashboardContent.dashboard;
     const params = await dash.getParametersAsync();
-    const p = params.find(x => x.name === PARAM_FROM_MONTH);
-    const av = p.allowableValues.allowableValues[0];
+    const find   = name => params.find(p => p.name === name);
 
-    let debugInfo = 'Trying approaches for: ' + PARAM_FROM_MONTH + '\n';
-    debugInfo += 'av keys: ' + Object.keys(av).join(', ') + '\n\n';
+    const setParam = async (paramName, intVal) => {
+      const param = find(paramName);
+      if (!param) throw new Error('Not found: ' + paramName);
+      await param.changeValueAsync(intVal);
+    };
 
-    const approaches = [
-      { label: 'av._value (string)',       val: av._value },
-      { label: 'av._nativeValue (int)',    val: av._nativeValue },
-      { label: 'av.value',                 val: av.value },
-      { label: 'av.nativeValue',           val: av.nativeValue },
-      { label: 'string "1"',               val: '1' },
-      { label: 'number 1',                 val: 1 },
-    ];
+    await setParam(PARAM_FROM_MONTH, fromMonth);
+    await setParam(PARAM_FROM_YEAR,  fromYear);
+    await setParam(PARAM_TO_MONTH,   toMonth);
+    await setParam(PARAM_TO_YEAR,    toYear);
 
-    for (const a of approaches) {
-      try {
-        await p.changeValueAsync(a.val);
-        debugInfo += 'SUCCESS: ' + a.label + ' = ' + JSON.stringify(a.val) + '\n';
-        break;
-      } catch(e) {
-        debugInfo += 'FAIL: ' + a.label + ' — ' + e.message + '\n';
-      }
-    }
-
-    setStatus(debugInfo);
+    const MO = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    setStatus('Applied: ' + MO[fromMonth] + ' ' + fromYear + ' to ' + MO[toMonth] + ' ' + toYear, 'success');
 
   } catch (err) {
     setStatus('Error: ' + err.message, 'error');
+    console.error(err);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Apply';
@@ -261,7 +227,7 @@ tableau.extensions.initializeAsync().then(() => {
   setStatus('Ready');
   setTimeout(() => setStatus(''), 1500);
 }).catch(() => {
-  setStatus('Running outside Tableau — preview mode only.');
+  setStatus('Running outside Tableau - preview mode only.');
 });
 </script>
 </body>
