@@ -213,40 +213,24 @@ function setStatus(msg, type = '') {
 }
 
 async function applyRange() {
-  const fromMonth = parseInt(document.getElementById('fromMonth').value);
-  const fromYear  = parseInt(document.getElementById('fromYear').value);
-  const toMonth   = parseInt(document.getElementById('toMonth').value);
-  const toYear    = parseInt(document.getElementById('toYear').value);
-
-  const fromIdx = fromYear * 12 + fromMonth;
-  const toIdx   = toYear  * 12 + toMonth;
-
-  if (fromIdx > toIdx) {
-    setStatus('From date must be before To date.', 'error');
-    return;
-  }
-
   const btn = document.getElementById('applyBtn');
   btn.disabled = true;
-  btn.textContent = 'Applying...';
+  btn.textContent = 'Checking...';
   setStatus('');
 
   try {
     const dash   = tableau.extensions.dashboardContent.dashboard;
     const params = await dash.getParametersAsync();
 
-    const find = name => params.find(p => p.name === name);
+    let debugInfo = '';
+    params.forEach(p => {
+      debugInfo += p.name + ' | type: ' + p.dataType + ' | value: ' + p.currentValue.value + '\n';
+    });
 
-	await find(PARAM_FROM_MONTH).changeValueAsync(parseInt(fromMonth, 10));
-	await find(PARAM_FROM_YEAR).changeValueAsync(parseInt(fromYear, 10));
-	await find(PARAM_TO_MONTH).changeValueAsync(parseInt(toMonth, 10));
-	await find(PARAM_TO_YEAR).changeValueAsync(parseInt(toYear, 10));
-	
-    const MO = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    setStatus(`Applied: ${MO[fromMonth]} ${fromYear} \u2192 ${MO[toMonth]} ${toYear}`, 'success');
+    setStatus(debugInfo);
+
   } catch (err) {
-    setStatus('Could not update parameters. Check names match exactly.', 'error');
-    console.error(err);
+    setStatus('Error: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Apply';
