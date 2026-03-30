@@ -237,10 +237,10 @@ async function applyRange() {
 
     const find = name => params.find(p => p.name === name);
 
-	await find(PARAM_FROM_MONTH).changeValueAsync(fromMonth | 0);
-	await find(PARAM_FROM_YEAR).changeValueAsync(fromYear | 0);
-	await find(PARAM_TO_MONTH).changeValueAsync(toMonth | 0);
-	await find(PARAM_TO_YEAR).changeValueAsync(toYear | 0);
+	await find(PARAM_FROM_MONTH).changeValueAsync(Number(fromMonth));
+	await find(PARAM_FROM_YEAR).changeValueAsync(Number(fromYear));
+	await find(PARAM_TO_MONTH).changeValueAsync(Number(toMonth));
+	await find(PARAM_TO_YEAR).changeValueAsync(Number(toYear));
 	
     const MO = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     setStatus(`Applied: ${MO[fromMonth]} ${fromYear} \u2192 ${MO[toMonth]} ${toYear}`, 'success');
