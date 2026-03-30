@@ -213,56 +213,35 @@ function setStatus(msg, type = '') {
 }
 
 async function applyRange() {
-  const fromMonth = parseInt(document.getElementById('fromMonth').value);
-  const fromYear  = parseInt(document.getElementById('fromYear').value);
-  const toMonth   = parseInt(document.getElementById('toMonth').value);
-  const toYear    = parseInt(document.getElementById('toYear').value);
-
-  const fromIdx = fromYear * 12 + fromMonth;
-  const toIdx   = toYear  * 12 + toMonth;
-
-  if (fromIdx > toIdx) {
-    setStatus('From date must be before To date.', 'error');
-    return;
-  }
-
   const btn = document.getElementById('applyBtn');
   btn.disabled = true;
-  btn.textContent = 'Applying...';
   setStatus('');
 
   try {
     const dash   = tableau.extensions.dashboardContent.dashboard;
     const params = await dash.getParametersAsync();
-
-    const find = name => params.find(p => p.name === name);
-
-    const setValue = async (paramName, intVal) => {
-      const param = find(paramName);
-      if (!param) throw new Error('Parameter not found: ' + paramName);
-      const allowed = param.allowableValues;
-      if (allowed && allowed.allowableValues && allowed.allowableValues.length > 0) {
-        const match = allowed.allowableValues.find(v => Number(v.value) === intVal);
-        if (match) {
-          await param.changeValueAsync(match.value);
-        } else {
-          throw new Error('Value ' + intVal + ' not in allowed list for ' + paramName);
-        }
-      } else {
-        await param.changeValueAsync(intVal);
+    const targets = [PARAM_FROM_MONTH, PARAM_FROM_YEAR, PARAM_TO_MONTH, PARAM_TO_YEAR];
+    
+    let debugInfo = '';
+    targets.forEach(name => {
+      const p = params.find(x => x.name === name);
+      if (!p) { debugInfo += name + ': NOT FOUND\n'; return; }
+      const av = p.allowableValues;
+      debugInfo += name + '\n';
+      debugInfo += '  dataType: ' + p.dataType + '\n';
+      debugInfo += '  currentValue: ' + JSON.stringify(p.currentValue) + '\n';
+      debugInfo += '  allowableValues type: ' + av.type + '\n';
+      if (av.allowableValues) {
+        debugInfo += '  first allowed: ' + JSON.stringify(av.allowableValues[0]) + '\n';
+        debugInfo += '  second allowed: ' + JSON.stringify(av.allowableValues[1]) + '\n';
       }
-    };
+      debugInfo += '\n';
+    });
 
-    await setValue(PARAM_FROM_MONTH, fromMonth);
-    await setValue(PARAM_FROM_YEAR,  fromYear);
-    await setValue(PARAM_TO_MONTH,   toMonth);
-    await setValue(PARAM_TO_YEAR,    toYear);
-	
-    const MO = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    setStatus(`Applied: ${MO[fromMonth]} ${fromYear} \u2192 ${MO[toMonth]} ${toYear}`, 'success');
+    setStatus(debugInfo);
+
   } catch (err) {
-    setStatus('Could not update parameters. Check names match exactly.', 'error');
-    console.error(err);
+    setStatus('Error: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Apply';
