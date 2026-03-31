@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loan Officer Filter</title>
+<script src="tableau.extensions.1.latest.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: transparent;
+    padding: 0;
+  }
+
+  .widget {
+    background: #ffffff;
+    border: 1px solid #dddbd4;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .widget-header {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid #dddbd4;
+    flex-shrink: 0;
+  }
+
+  .widget-label {
+    font-size: 10px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: #888780;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .search-wrap {
+    position: relative;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 13px;
+    height: 13px;
+    color: #b4b2a9;
+    pointer-events: none;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    background: #f4f3ef;
+    border: 1px solid #dddbd4;
+    border-radius: 6px;
+    padding: 7px 10px 7px 28px;
+    font-size: 13px;
+    color: #2c2c2a;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s;
+  }
+
+  input[type="text"]:focus {
+    border-color: #185FA5;
+    background: #fff;
+  }
+
+  input[type="text"]::placeholder { color: #b4b2a9; }
+
+  .list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 0;
+  }
+
+  .list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background .1s;
+    border-left: 3px solid transparent;
+  }
+
+  .list-item:hover { background: #f4f3ef; }
+
+  .list-item.selected {
+    background: #E6F1FB;
+    border-left-color: #0C447C;
+  }
+
+  .list-item.selected .item-name { color: #0C447C; font-weight: 600; }
+
+  .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #dddbd4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #5F5E5A;
+    flex-shrink: 0;
+    letter-spacing: .02em;
+  }
+
+  .list-item.selected .avatar {
+    background: #B5D4F4;
+    color: #0C447C;
+  }
+
+  .all-avatar {
+    background: #f4f3ef;
+    color: #888780;
+    font-size: 13px;
+  }
+
+  .list-item.selected .all-avatar {
+    background: #B5D4F4;
+    color: #0C447C;
+  }
+
+  .item-name {
+    font-size: 13px;
+    color: #2c2c2a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .no-results {
+    padding: 20px 12px;
+    font-size: 13px;
+    color: #b4b2a9;
+    text-align: center;
+  }
+
+  .status {
+    padding: 6px 12px;
+    font-size: 11px;
+    color: #b4b2a9;
+    border-top: 1px solid #dddbd4;
+    flex-shrink: 0;
+    min-height: 28px;
+  }
+
+  .status.error   { color: #A32D2D; }
+  .status.success { color: #3B6D11; }
+</style>
+</head>
+<body>
+<div class="widget">
+  <div class="widget-header">
+    <div class="widget-label">Loan Officer</div>
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="6.5" cy="6.5" r="4.5"/>
+        <line x1="10.5" y1="10.5" x2="14" y2="14"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Search officer..." oninput="filterList()">
+    </div>
+  </div>
+
+  <div class="list" id="officerList"></div>
+  <div class="status" id="status">Loading...</div>
+</div>
+
+<script>
+const PARAM_NAME = 'cfLoanOfficer';
+const ALL_VALUE  = 'All';
+
+let allOfficers  = [];
+let selectedValue = ALL_VALUE;
+let tableau_param = null;
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + (type || '');
+}
+
+function initials(name) {
+  if (name === ALL_VALUE) return '★';
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+}
+
+function renderList(officers) {
+  const container = document.getElementById('officerList');
+  container.innerHTML = '';
+
+  if (officers.length === 0) {
+    container.innerHTML = '<div class="no-results">No officers found</div>';
+    return;
+  }
+
+  officers.forEach(name => {
+    const item = document.createElement('div');
+    item.className = 'list-item' + (name === selectedValue ? ' selected' : '');
+
+    const av = document.createElement('div');
+    av.className = 'avatar' + (name === ALL_VALUE ? ' all-avatar' : '');
+    av.textContent = initials(name);
+
+    const nm = document.createElement('div');
+    nm.className = 'item-name';
+    nm.textContent = name === ALL_VALUE ? 'All Officers' : name;
+
+    item.appendChild(av);
+    item.appendChild(nm);
+
+    item.onclick = () => selectOfficer(name);
+    container.appendChild(item);
+  });
+}
+
+function filterList() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allOfficers.filter(n =>
+    n === ALL_VALUE || n.toLowerCase().includes(q)
+  );
+  renderList(filtered);
+}
+
+async function selectOfficer(name) {
+  if (name === selectedValue) return;
+  selectedValue = name;
+  filterList();
+
+  if (!tableau_param) return;
+
+  try {
+    const av = tableau_param.allowableValues.allowableValues;
+    let valueToSet;
+
+    if (av && av.length > 0) {
+      const match = av.find(v =>
+        v._aliasValue === name || v._value === name || v._formattedValue === name
+      );
+      valueToSet = match ? match._aliasValue : name;
+    } else {
+      valueToSet = name;
+    }
+
+    await tableau_param.changeValueAsync(valueToSet);
+    setStatus('Showing: ' + (name === ALL_VALUE ? 'All Officers' : name), 'success');
+    setTimeout(() => setStatus(''), 2000);
+
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+tableau.extensions.initializeAsync({ configure: false }).then(async () => {
+  try {
+    const dash   = tableau.extensions.dashboardContent.dashboard;
+    const params = await dash.getParametersAsync();
+    const param  = params.find(p => p.name === PARAM_NAME);
+
+    if (!param) {
+      setStatus('Parameter "' + PARAM_NAME + '" not found.', 'error');
+      return;
+    }
+
+    tableau_param = param;
+    selectedValue = param.currentValue._aliasValue || param.currentValue._value || ALL_VALUE;
+
+    const av = param.allowableValues.allowableValues;
+    if (av && av.length > 0) {
+      const names = av.map(v => v._aliasValue || v._value);
+      allOfficers = [ALL_VALUE, ...names];
+    } else {
+      allOfficers = [ALL_VALUE];
+      setStatus('No allowed values found on parameter.', 'error');
+    }
+
+    renderList(allOfficers);
+    setStatus('');
+
+  } catch(e) {
+    setStatus('Init error: ' + e.message, 'error');
+    console.error(e);
+  }
+
+}).catch(() => {
+  allOfficers = [ALL_VALUE, 'Jane Smith', 'John Doe', 'Maria Garcia', 'Robert Lee', 'Sarah Johnson'];
+  selectedValue = ALL_VALUE;
+  renderList(allOfficers);
+  setStatus('Preview mode — not connected to Tableau');
+});
+</script>
+</body>
+</html>
