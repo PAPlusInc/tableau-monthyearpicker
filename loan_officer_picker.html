@@ -149,13 +149,13 @@
 </div>
 
 <script>
-const WORKSHEET_NAME = 'LOPerformanceStatus';
-const FIELD_NAME     = 'cfLoanOfficer';
+const WORKSHEET_NAME = 'LOPerformanceTotals';
+const FIELD_NAME     = 'Loan Officer';
 const ALL_LABEL      = 'All Officers';
 
-let allOfficers  = [];
+let allOfficers   = [];
 let selectedValue = ALL_LABEL;
-let worksheet    = null;
+let worksheet     = null;
 
 function setStatus(msg, type) {
   const el = document.getElementById('status');
@@ -234,13 +234,19 @@ tableau.extensions.initializeAsync({ configure: false }).then(async () => {
     worksheet  = dash.worksheets.find(ws => ws.name === WORKSHEET_NAME);
 
     if (!worksheet) {
-      setStatus('Worksheet "' + WORKSHEET_NAME + '" not found.', 'error');
+      const names = dash.worksheets.map(ws => ws.name).join(' | ');
+      setStatus('Sheet not found. Available: ' + names, 'error');
       return;
     }
 
-const allSheets = dash.worksheets.map(ws => ws.name).join(' | ');
-setStatus('Sheets: ' + allSheets);
-return;
+    const dataTable = await worksheet.getSummaryDataAsync();
+    const colIndex  = dataTable.columns.findIndex(c => c.fieldName === FIELD_NAME);
+
+    if (colIndex === -1) {
+      const cols = dataTable.columns.map(c => c.fieldName).join(' | ');
+      setStatus('Field not found. Available: ' + cols, 'error');
+      return;
+    }
 
     const seen  = new Set();
     const names = [];
