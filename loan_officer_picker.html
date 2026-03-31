@@ -239,7 +239,7 @@ tableau.extensions.initializeAsync({ configure: false }).then(async () => {
       return;
     }
 
-    const dataTable = await worksheet.getSummaryDataAsync();
+	const dataTable = await worksheet.getSummaryDataAsync({ maxRows: 0, ignoreAliases: false, ignoreSelection: true, includeAllColumns: true });
     const colIndex  = dataTable.columns.findIndex(c => c.fieldName === FIELD_NAME);
 
     if (colIndex === -1) {
