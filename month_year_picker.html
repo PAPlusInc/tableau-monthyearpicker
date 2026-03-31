@@ -7,6 +7,7 @@
 <script src="tableau.extensions.1.latest.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
     font-family: 'Segoe UI', system-ui, sans-serif;
     background: #f8f8f6;
@@ -16,6 +17,7 @@
     min-height: 100vh;
     padding: 12px;
   }
+
   .picker {
     display: flex;
     align-items: flex-end;
@@ -26,7 +28,9 @@
     padding: 14px 18px;
     flex-wrap: wrap;
   }
+
   .group { display: flex; flex-direction: column; gap: 5px; }
+
   .group-label {
     font-size: 10px;
     letter-spacing: .09em;
@@ -34,7 +38,9 @@
     color: #888780;
     font-weight: 600;
   }
+
   .selects { display: flex; gap: 5px; }
+
   select {
     appearance: none;
     background: #f4f3ef;
@@ -50,16 +56,18 @@
     background-position: right 8px center;
     font-family: inherit;
   }
+
   select:focus { outline: none; border-color: #185FA5; background-color: #fff; }
   select.month { min-width: 70px; }
   select.year  { min-width: 72px; }
+
   .arrow {
     padding-bottom: 9px;
     color: #b4b2a9;
     font-size: 16px;
-    line-height: 1;
     align-self: flex-end;
   }
+
   .divider {
     width: 1px;
     height: 36px;
@@ -67,17 +75,17 @@
     align-self: flex-end;
     margin: 0 2px;
   }
+
   .apply-wrap { display: flex; flex-direction: column; gap: 5px; }
-  .apply-label {
+
+  .spacer {
     font-size: 10px;
-    letter-spacing: .09em;
-    text-transform: uppercase;
     color: transparent;
-    font-weight: 600;
     user-select: none;
   }
+
   button {
-    padding: 8px 20px;
+    padding: 8px 22px;
     background: #0C447C;
     color: #E6F1FB;
     border: none;
@@ -90,25 +98,26 @@
     transition: background .15s;
     white-space: nowrap;
   }
-  button:hover  { background: #185FA5; }
-  button:active { background: #042C53; transform: scale(0.98); }
+
+  button:hover   { background: #185FA5; }
+  button:active  { background: #042C53; transform: scale(0.98); }
   button:disabled { background: #b4b2a9; cursor: default; transform: none; }
+
   .status {
     font-size: 11px;
     color: #888780;
-    padding-left: 2px;
     padding-top: 6px;
     width: 100%;
     min-height: 16px;
-    white-space: pre-wrap;
   }
+
   .status.error   { color: #A32D2D; }
   .status.success { color: #3B6D11; }
 </style>
 </head>
 <body>
-
 <div class="picker">
+
   <div class="group">
     <div class="group-label">From</div>
     <div class="selects">
@@ -144,7 +153,7 @@
   <div class="divider"></div>
 
   <div class="apply-wrap">
-    <div class="apply-label">&#8203;</div>
+    <div class="spacer">&#8203;</div>
     <button id="applyBtn">Apply</button>
   </div>
 
@@ -157,12 +166,19 @@ const PARAM_FROM_YEAR  = 'pFromYearApply';
 const PARAM_TO_MONTH   = 'pToMonthApply';
 const PARAM_TO_YEAR    = 'pToYearApply';
 
-const MO = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const YEARS  = [2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030];
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + (type || '');
+}
 
 function populateYears() {
-  ['fromYear', 'toYear'].forEach((id, i) => {
+  ['fromYear','toYear'].forEach((id, i) => {
     const sel = document.getElementById(id);
-    [2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030].forEach(y => {
+    YEARS.forEach(y => {
       const opt = document.createElement('option');
       opt.value = y;
       opt.textContent = y;
@@ -170,12 +186,6 @@ function populateYears() {
       sel.appendChild(opt);
     });
   });
-}
-
-function setStatus(msg, type) {
-  const el = document.getElementById('status');
-  el.textContent = msg;
-  el.className = 'status ' + (type || '');
 }
 
 populateYears();
@@ -205,23 +215,16 @@ tableau.extensions.initializeAsync({ configure: false }).then(async () => {
       const params = await dash.getParametersAsync();
       const find   = name => params.find(p => p.name === name);
 
-      const setParam = async (paramName, intVal) => {
-        const param = find(paramName);
-        if (!param) throw new Error('Not found: ' + paramName);
-        const av = param.allowableValues.allowableValues;
-        const match = av
-          ? av.find(v => v._nativeValue === intVal) || av.find(v => Number(v._value) === intVal)
-          : null;
-        const valueToPass = match ? match._value : String(intVal);
-        await param.changeValueAsync(valueToPass);
-      };
+      await find(PARAM_FROM_MONTH).changeValueAsync(fromMonth);
+      await find(PARAM_FROM_YEAR).changeValueAsync(fromYear);
+      await find(PARAM_TO_MONTH).changeValueAsync(toMonth);
+      await find(PARAM_TO_YEAR).changeValueAsync(toYear);
 
-      await setParam(PARAM_FROM_MONTH, fromMonth);
-      await setParam(PARAM_FROM_YEAR,  fromYear);
-      await setParam(PARAM_TO_MONTH,   toMonth);
-      await setParam(PARAM_TO_YEAR,    toYear);
-
-      setStatus('Applied: ' + MO[fromMonth] + ' ' + fromYear + ' to ' + MO[toMonth] + ' ' + toYear, 'success');
+      setStatus(
+        'Applied: ' + MONTHS[fromMonth] + ' ' + fromYear +
+        ' to ' + MONTHS[toMonth] + ' ' + toYear,
+        'success'
+      );
 
     } catch (e) {
       setStatus('Error: ' + e.message, 'error');
@@ -232,8 +235,8 @@ tableau.extensions.initializeAsync({ configure: false }).then(async () => {
     }
   };
 
-}).catch(e => {
-  setStatus('Init failed: ' + (e.message || 'outside Tableau'));
+}).catch(() => {
+  setStatus('Running outside Tableau — preview mode only.');
 });
 </script>
 </body>
