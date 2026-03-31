@@ -78,11 +78,7 @@
 
   .apply-wrap { display: flex; flex-direction: column; gap: 5px; }
 
-  .spacer {
-    font-size: 10px;
-    color: transparent;
-    user-select: none;
-  }
+  .spacer { font-size: 10px; color: transparent; user-select: none; }
 
   button {
     padding: 8px 22px;
@@ -215,17 +211,19 @@ tableau.extensions.initializeAsync({ configure: false }).then(async () => {
       const params = await dash.getParametersAsync();
       const find   = name => params.find(p => p.name === name);
 
-	  const setParam = async (paramName, intVal) => {
-	  const param = find(paramName);
-	  const av = param.allowableValues.allowableValues;
-	  const match = av.find(v => v._nativeValue === intVal);
-	  await param.changeValueAsync(match._aliasValue);
-	  };
-	     
-	  await setParam(PARAM_FROM_MONTH,fromMonth);
-	  await setParam(PARAM_FROM_YEAR,fromYear);
-	  await setParam(PARAM_TO_MONTH,toMonth);
-	  await setParam(PARAM_TO_YEAR,toYear);
+      const setParam = async (paramName, intVal) => {
+        const param = find(paramName);
+        if (!param) throw new Error('Parameter not found: ' + paramName);
+        const av = param.allowableValues.allowableValues;
+        const match = av.find(v => v._nativeValue === intVal);
+        if (!match) throw new Error('Value ' + intVal + ' not in allowed list for ' + paramName);
+        await param.changeValueAsync(match._aliasValue);
+      };
+
+      await setParam(PARAM_FROM_MONTH, fromMonth);
+      await setParam(PARAM_FROM_YEAR,  fromYear);
+      await setParam(PARAM_TO_MONTH,   toMonth);
+      await setParam(PARAM_TO_YEAR,    toYear);
 
       setStatus(
         'Applied: ' + MONTHS[fromMonth] + ' ' + fromYear +
