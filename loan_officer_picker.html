@@ -150,7 +150,7 @@
 
 <script>
 const WORKSHEET_NAME = 'LOPerformanceStatus';
-const FIELD_NAME     = 'Loan Officer';
+const FIELD_NAME     = 'cfLoanOfficer';
 const ALL_LABEL      = 'All Officers';
 
 let allOfficers  = [];
@@ -239,12 +239,9 @@ tableau.extensions.initializeAsync({ configure: false }).then(async () => {
     }
 
     const dataTable = await worksheet.getSummaryDataAsync();
-    const colIndex  = dataTable.columns.findIndex(c => c.fieldName === FIELD_NAME);
-
-    if (colIndex === -1) {
-      setStatus('Field "' + FIELD_NAME + '" not found in worksheet.', 'error');
-      return;
-    }
+	const colNames = dataTable.columns.map(c => c.fieldName).join(' | ');
+	setStatus(colNames);
+	return;
 
     const seen  = new Set();
     const names = [];
