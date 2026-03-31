@@ -238,10 +238,9 @@ tableau.extensions.initializeAsync({ configure: false }).then(async () => {
       return;
     }
 
-    const dataTable = await worksheet.getSummaryDataAsync();
-	const colNames = dataTable.columns.map(c => c.fieldName).join(' | ');
-	document.getElementById('officerList').innerHTML = '<div style="padding:12px;font-size:11px;word-break:break-all;color:#2c2c2a">' + colNames + '</div>';
-	return;
+const allSheets = dash.worksheets.map(ws => ws.name).join(' | ');
+setStatus('Sheets: ' + allSheets);
+return;
 
     const seen  = new Set();
     const names = [];
