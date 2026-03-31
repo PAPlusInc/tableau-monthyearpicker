@@ -215,10 +215,10 @@ tableau.extensions.initializeAsync({ configure: false }).then(async () => {
       const params = await dash.getParametersAsync();
       const find   = name => params.find(p => p.name === name);
 
-      await find(PARAM_FROM_MONTH).changeValueAsync(fromMonth);
-      await find(PARAM_FROM_YEAR).changeValueAsync(fromYear);
-      await find(PARAM_TO_MONTH).changeValueAsync(toMonth);
-      await find(PARAM_TO_YEAR).changeValueAsync(toYear);
+	  await find(PARAM_FROM_MONTH).changeValueAsync(String(fromMonth));
+	  await find(PARAM_FROM_YEAR).changeValueAsync(String(fromYear));
+	  await find(PARAM_TO_MONTH).changeValueAsync(String(toMonth));
+	  await find(PARAM_TO_YEAR).changeValueAsync(String(toYear));
 
       setStatus(
         'Applied: ' + MONTHS[fromMonth] + ' ' + fromYear +
