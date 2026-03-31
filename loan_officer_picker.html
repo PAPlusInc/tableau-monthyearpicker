@@ -40,9 +40,7 @@
     margin-bottom: 6px;
   }
 
-  .search-wrap {
-    position: relative;
-  }
+  .search-wrap { position: relative; }
 
   .search-icon {
     position: absolute;
@@ -68,18 +66,10 @@
     transition: border-color .15s;
   }
 
-  input[type="text"]:focus {
-    border-color: #185FA5;
-    background: #fff;
-  }
-
+  input[type="text"]:focus { border-color: #185FA5; background: #fff; }
   input[type="text"]::placeholder { color: #b4b2a9; }
 
-  .list {
-    overflow-y: auto;
-    flex: 1;
-    padding: 4px 0;
-  }
+  .list { overflow-y: auto; flex: 1; padding: 4px 0; }
 
   .list-item {
     display: flex;
@@ -112,24 +102,11 @@
     font-weight: 600;
     color: #5F5E5A;
     flex-shrink: 0;
-    letter-spacing: .02em;
   }
 
-  .list-item.selected .avatar {
-    background: #B5D4F4;
-    color: #0C447C;
-  }
-
-  .all-avatar {
-    background: #f4f3ef;
-    color: #888780;
-    font-size: 13px;
-  }
-
-  .list-item.selected .all-avatar {
-    background: #B5D4F4;
-    color: #0C447C;
-  }
+  .list-item.selected .avatar { background: #B5D4F4; color: #0C447C; }
+  .all-avatar { background: #f4f3ef; color: #888780; font-size: 13px; }
+  .list-item.selected .all-avatar { background: #B5D4F4; color: #0C447C; }
 
   .item-name {
     font-size: 13px;
@@ -139,12 +116,7 @@
     text-overflow: ellipsis;
   }
 
-  .no-results {
-    padding: 20px 12px;
-    font-size: 13px;
-    color: #b4b2a9;
-    text-align: center;
-  }
+  .no-results { padding: 20px 12px; font-size: 13px; color: #b4b2a9; text-align: center; }
 
   .status {
     padding: 6px 12px;
@@ -177,12 +149,13 @@
 </div>
 
 <script>
-const PARAM_NAME = 'cfLoanOfficer';
-const ALL_VALUE  = 'All';
+const WORKSHEET_NAME = 'LOPerformanceStatus';
+const FIELD_NAME     = 'cfLoanOfficer';
+const ALL_LABEL      = 'All Officers';
 
 let allOfficers  = [];
-let selectedValue = ALL_VALUE;
-let tableau_param = null;
+let selectedValue = ALL_LABEL;
+let worksheet    = null;
 
 function setStatus(msg, type) {
   const el = document.getElementById('status');
@@ -191,7 +164,7 @@ function setStatus(msg, type) {
 }
 
 function initials(name) {
-  if (name === ALL_VALUE) return '★';
+  if (name === ALL_LABEL) return '★';
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 }
 
@@ -209,16 +182,15 @@ function renderList(officers) {
     item.className = 'list-item' + (name === selectedValue ? ' selected' : '');
 
     const av = document.createElement('div');
-    av.className = 'avatar' + (name === ALL_VALUE ? ' all-avatar' : '');
+    av.className = 'avatar' + (name === ALL_LABEL ? ' all-avatar' : '');
     av.textContent = initials(name);
 
     const nm = document.createElement('div');
     nm.className = 'item-name';
-    nm.textContent = name === ALL_VALUE ? 'All Officers' : name;
+    nm.textContent = name;
 
     item.appendChild(av);
     item.appendChild(nm);
-
     item.onclick = () => selectOfficer(name);
     container.appendChild(item);
   });
@@ -227,33 +199,27 @@ function renderList(officers) {
 function filterList() {
   const q = document.getElementById('searchInput').value.toLowerCase();
   const filtered = allOfficers.filter(n =>
-    n === ALL_VALUE || n.toLowerCase().includes(q)
+    n === ALL_LABEL || n.toLowerCase().includes(q)
   );
   renderList(filtered);
 }
 
 async function selectOfficer(name) {
-  if (name === selectedValue) return;
+  if (name === selectedValue || !worksheet) return;
   selectedValue = name;
   filterList();
 
-  if (!tableau_param) return;
-
   try {
-    const av = tableau_param.allowableValues.allowableValues;
-    let valueToSet;
-
-    if (av && av.length > 0) {
-      const match = av.find(v =>
-        v._aliasValue === name || v._value === name || v._formattedValue === name
-      );
-      valueToSet = match ? match._aliasValue : name;
+    if (name === ALL_LABEL) {
+      await worksheet.clearFilterAsync(FIELD_NAME);
     } else {
-      valueToSet = name;
+      await worksheet.applyFilterAsync(
+        FIELD_NAME,
+        [name],
+        tableau.FilterUpdateType.Replace
+      );
     }
-
-    await tableau_param.changeValueAsync(valueToSet);
-    setStatus('Showing: ' + (name === ALL_VALUE ? 'All Officers' : name), 'success');
+    setStatus('Showing: ' + name, 'success');
     setTimeout(() => setStatus(''), 2000);
 
   } catch(e) {
@@ -264,38 +230,42 @@ async function selectOfficer(name) {
 
 tableau.extensions.initializeAsync({ configure: false }).then(async () => {
   try {
-    const dash   = tableau.extensions.dashboardContent.dashboard;
-    const params = await dash.getParametersAsync();
-    const param  = params.find(p => p.name === PARAM_NAME);
+    const dash = tableau.extensions.dashboardContent.dashboard;
+    worksheet  = dash.worksheets.find(ws => ws.name === WORKSHEET_NAME);
 
-    if (!param) {
-      setStatus('Parameter "' + PARAM_NAME + '" not found.', 'error');
+    if (!worksheet) {
+      setStatus('Worksheet "' + WORKSHEET_NAME + '" not found.', 'error');
       return;
     }
 
-    tableau_param = param;
-    selectedValue = param.currentValue._aliasValue || param.currentValue._value || ALL_VALUE;
+    const dataTable = await worksheet.getSummaryDataAsync();
+    const colIndex  = dataTable.columns.findIndex(c => c.fieldName === FIELD_NAME);
 
-    const av = param.allowableValues.allowableValues;
-    if (av && av.length > 0) {
-      const names = av.map(v => v._aliasValue || v._value);
-      allOfficers = [ALL_VALUE, ...names];
-    } else {
-      allOfficers = [ALL_VALUE];
-      setStatus('No allowed values found on parameter.', 'error');
+    if (colIndex === -1) {
+      setStatus('Field "' + FIELD_NAME + '" not found in worksheet.', 'error');
+      return;
     }
 
+    const seen  = new Set();
+    const names = [];
+    dataTable.data.forEach(row => {
+      const val = row[colIndex].formattedValue;
+      if (val && !seen.has(val)) { seen.add(val); names.push(val); }
+    });
+
+    names.sort();
+    allOfficers = [ALL_LABEL, ...names];
     renderList(allOfficers);
     setStatus('');
 
   } catch(e) {
-    setStatus('Init error: ' + e.message, 'error');
+    setStatus('Error: ' + e.message, 'error');
     console.error(e);
   }
 
 }).catch(() => {
-  allOfficers = [ALL_VALUE, 'Jane Smith', 'John Doe', 'Maria Garcia', 'Robert Lee', 'Sarah Johnson'];
-  selectedValue = ALL_VALUE;
+  allOfficers = [ALL_LABEL, 'Jane Smith', 'John Doe', 'Maria Garcia', 'Robert Lee', 'Sarah Johnson'];
+  selectedValue = ALL_LABEL;
   renderList(allOfficers);
   setStatus('Preview mode — not connected to Tableau');
 });
